@@ -9,6 +9,7 @@ from selenium import webdriver
 import time
 from bs4 import BeautifulSoup
 import pandas as pd
+from datetime import datetime
 
 # =============================================================================
 # getting a list of 17 shortterm bond URLs
@@ -77,7 +78,7 @@ for link in midBondLst:
     midBondIsin.append(link.split('-')[-1])
 
 # =============================================================================
-# scrape each page of historical bond data
+# scrape each page of historical bond data - ran after markets closed Jan 15
 # =============================================================================
 
 def scrapeHistory(isin, linkLst):
@@ -134,3 +135,61 @@ shortdf.to_csv(r'short term bond data.csv')
 # =============================================================================
 # associating bonds to their maturity date
 # =============================================================================
+
+maturityInfoUrl = 'https://www.bankofcanada.ca/markets/government-securities-auctions/bank-of-canada-holdings/?fbclid=IwAR0QpyunbKQ_Y5Y9cjCrzDi8uf9ilm2Sy8aR77hP2sE-ny96qXj7MpY7vRU'
+driver.get(maturityInfoUrl)
+
+maturityInfoSoup = BeautifulSoup(driver.page_source, 'html.parser')
+maturityInfoSauce = maturityInfoSoup.find_all('tbody', {'class':'bocss-table__tbody'})
+maturityInfo = maturityInfoSauce[2]
+maturityInfo = maturityInfo.find_all('tr')
+
+maturity = []
+couponRate = []
+isin = []
+parVal = []
+
+for i in range(len(maturityInfo)):
+    info = maturityInfo[i].find_all('td')
+    maturity.append(info[0].text)
+    couponRate.append(info[1].text)
+    isin.append(info[2].text)
+    parVal.append(info[3].text)
+    
+
+maturityDic = {'maturity':maturity,
+               'couponRate':couponRate,
+               'isin':isin,
+               'parVal':parVal}
+
+maturity_df = pd.DataFrame(maturityDic)
+
+# =============================================================================
+# compiling pricing data and maturity data 
+# =============================================================================
+
+mid_df = pd.read_csv('mid term bond data.csv')
+short_df = pd.read_csv('short term bond data.csv')
+
+# combine shortterm and midterm bonds
+bond_df = pd.concat([short_df, mid_df],axis = 0)
+
+# initialize new columns for incoming data
+bond_df['maturity'] = 0
+bond_df['couponRate'] = 0
+bond_df['parVal'] = 0
+
+# get a list of unique bond identifiers
+isinLst = bond_df['isin'].unique()
+
+# join maturity_df information to bond_df along isin
+for e in isinLst:
+    maturityDate = maturity_df[maturity_df['isin']==str.upper(e)]['maturity'].item()
+    maturityDate = datetime.strptime(maturityDate, '%Y-%m-%d')
+    bond_df.loc[bond_df['isin']==e,'maturity']=maturityDate
+    couponRate = float(maturity_df[maturity_df['isin']==str.upper(e)]['couponRate'].item())
+    bond_df.loc[bond_df['isin']==e,'couponRate']=couponRate
+    parVal = float(maturity_df[maturity_df['isin']==str.upper(e)]['parVal'].item().replace(',',''))
+    bond_df.loc[bond_df['isin']==e,'parVal'] = parVal
+    
+bond_df.to_csv(r'bond data.csv')    
