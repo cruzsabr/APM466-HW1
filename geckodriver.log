@@ -7,3 +7,10 @@
 JavaScript error: resource://gre/modules/XULStore.jsm, line 66: Error: Can't find profile directory.
 1580235663700	Marionette	INFO	Listening on port 52376
 1580235663901	Marionette	WARN	TLS certificate errors will be ignored for this session
+1580239163451	Marionette	INFO	Stopped listening on port 52376
+
+###!!! [Child][RunMessage] Error: Channel closing: too late to send/recv, messages will be lost
+
+
+###!!! [Child][MessageChannel::SendAndWait] Error: Channel error: cannot send/recv
+
