@@ -42,15 +42,14 @@ yieldBonds.maturity = [int(datetime.strptime(i, '%Y-%m-%d %H:%M').strftime('%y%m
 
 # base sep2022 data on jun2022 
 sep2022 = yieldBonds.loc[yieldBonds.maturity == 220601].reset_index(drop = True)
+
 # change the maturity date
 sep2022['maturity'] = [220901 for i in range(len(sep2022))]
 mar2023 = yieldBonds.loc[yieldBonds.maturity == 230301].reset_index(drop = True)
 
-weight = 0.5
-
 # linearly interpolate price and coupon rate between jun 2022 and mar2023
 for i in range(len(sep2022)):
-    sep2022.loc[i,'pClose'] = (sep2022.loc[i,'pClose']+mar2023.loc[i,'pClose'])*weight
+    sep2022.loc[i,'pClose'] = (sep2022.loc[i,'pClose']+mar2023.loc[i,'pClose'])/2
     sep2022.loc[i,'couponRate'] = (sep2022.loc[i,'couponRate']+mar2023.loc[i,'couponRate'])/2
 
 # repeat similar process for sep2023
@@ -58,15 +57,16 @@ sep2023 = yieldBonds.loc[yieldBonds.maturity == 230601].reset_index(drop = True)
 sep2023['maturity'] = [230901 for i in range(len(sep2023))]
 mar2024 = yieldBonds.loc[yieldBonds.maturity == 240301].reset_index(drop = True)
 for i in range(len(sep2023)):
-    sep2023.loc[i,'pClose'] = (sep2023.loc[i,'pClose']+mar2024.loc[i,'pClose'])*weight
+    sep2023.loc[i,'pClose'] = (sep2023.loc[i,'pClose']+mar2024.loc[i,'pClose'])/2
     sep2023.loc[i,'couponRate'] = (sep2023.loc[i,'couponRate']+mar2024.loc[i,'couponRate'])/2
 
 # remove jun2022 and jun2023 data
 yieldBonds = yieldBonds[~yieldBonds.maturity.isin([220601,230601])].reset_index(drop = True)
 yieldBonds = pd.concat([yieldBonds, sep2022,sep2023],axis = 0)
 yieldBonds = yieldBonds.sort_values(by = 'maturity')
+
 # =============================================================================
-# calculate yield rate for each data point for each market date
+# calculate yield rate for each data point for each market date and plot it
 # =============================================================================
 
 fig = go.Figure()
@@ -91,6 +91,7 @@ for date in dateRange:
             
     fig.add_trace(go.Scatter(x=x_maturity, y=yieldRate,
                     mode='lines + markers',
+                    text = x_maturity,
                     name=date))
     
     fig.update_layout(title = {
@@ -105,4 +106,10 @@ for date in dateRange:
                )
 
 fig.show()
-fig.write_image("5 Year Yield Curve.png", width = 624, height = 384)
+fig.write_image("5 Year Yield Curve.png", width = 624, height = 300)
+
+# =============================================================================
+# calculate the spot rate for each maturity date and plot it
+# =============================================================================
+
+
