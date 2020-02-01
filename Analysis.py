@@ -85,8 +85,6 @@ fig = go.Figure()
 
 for date in dateRange:
     bonds = yieldBonds[yieldBonds.date == date].reset_index(drop = True)
-    #x_maturity = bonds['maturity']
-    #x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
     x = range(0,11)
     x = [i/2 for i in x]
 
@@ -117,6 +115,7 @@ for date in dateRange:
                yaxis_title = 'Yield Rate',
                template = 'plotly_white'
                )
+    fig.update_xaxes(dtick =1, rangemode = 'tozero', range = [0,5])
     
 
 fig.show()
@@ -139,7 +138,7 @@ for date in dateRange:
     firstSpot = yieldRate[0]
     firstCoupon = 1000 * bonds.loc[1,'couponRate']/100
     spotRate.append(firstSpot)
-    runningSum = firstCoupon / (1+(1/12)*spotRate[0])
+    runningSum = firstCoupon * np.exp(-spotRate[0]*(1/2))
     
     for i in range(1,len(bonds)-1):
         couponRate = bonds.loc[i+1,'couponRate']/100
@@ -148,7 +147,7 @@ for date in dateRange:
         timeToMaturity = 1/2
         newSpot = (((notional/(marketPrice - runningSum))**(1/(i+1)))-1)/timeToMaturity
         spotRate.append(newSpot)
-        runningSum += notional * couponRate / (1+timeToMaturity*spotRate[i])**i
+        runningSum += notional * couponRate * np.exp(-spotRate[i]*timeToMaturity)
      
     fig2.add_trace(go.Scatter(x=x, y=spotRate,
                     mode='lines + markers',
@@ -164,10 +163,11 @@ for date in dateRange:
                yaxis_title = 'Spot Rate',
                template = 'plotly_white'
                )
+    fig2.update_xaxes(dtick =1, rangemode = 'tozero', range = [0,5])
+
 
 fig2.show()
 fig2.write_image("5 Year Spot Curve.png", width = 624, height = 300)
-
 # =============================================================================
 # calculate the forward rate for each matury date and plot it
 # =============================================================================
@@ -178,32 +178,50 @@ fig3 = go.Figure()
 for date in dateRange:
     
     bonds = yieldBonds[yieldBonds.date == date].reset_index(drop = True)
-#    x_maturity = bonds['maturity']
-#    x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
-    x = range(0,11)
+    x = range(2,11)
     x = [i/2 for i in x]
+
+    # calculate the yield rates
+    yieldRate = []
+    
+    runningSum = 0
+   
+    for i in range(0,len(bonds)-1):
+        couponRate = bonds.loc[i+1,'couponRate']/100
+        notional = 1000
+        marketPrice = bonds.loc[i,'pClose']/100 * notional
+        timeToMaturity = (1+(6*i))/12
+        newYield = -np.log((marketPrice - runningSum)/notional)/timeToMaturity
+        yieldRate.append(newYield)
+        runningSum += notional * couponRate * np.exp(-yieldRate[i]*timeToMaturity)
+    
     fwdRate = []
         
-    for i in range(0,len(bonds)-2):
-        spot1 = spotRate[i]
-        spot2 = spotRate[i+1]
-        newFwd = (1+spot2)**(i+1)/(1+spot1)**(i)-1
+    for i in range(2,len(yieldRate)-2):
+        y1 = yieldRate[i]
+        y2 = yieldRate[i+2]
+        t1 = (1+(6*i))/2
+        t2 = (1+(6*(i+2)))/2
+        newFwd = ((y2*t2)-(y1*t1))/(t2-t1)
         fwdRate.append(newFwd)
      
-    fig3.add_trace(go.Scatter(x=x, y=spotRate,
+    fig3.add_trace(go.Scatter(x=x, y=fwdRate,
                     mode='lines + markers',
                     name=date))
     
     fig3.update_layout(title = {
-            'text':"5 Year Forward Curve",
+            'text':"One Year Forward Curve",
             'y':0.9,
             'x':0.5,
             'xanchor':'center',
             'yanchor':'top'},
                xaxis_title = 'Time to Maturity',
-               yaxis_title = 'Spot Rate',
+               yaxis_title = 'Forward Rate',
                template = 'plotly_white'
                )
+    fig3.update_xaxes(dtick =1, rangemode = 'tozero', range = [0,5])
 
 fig3.show()
-#fig3.write_image("5 Year Spot Curve.png", width = 624, height = 300)
+fig3.write_image("5 Year Forward Curve.png", width = 624, height = 300)
+
+
