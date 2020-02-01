@@ -163,10 +163,12 @@ maturityDic = {'maturity':maturity,
                'parVal':parVal}
 
 maturity_df = pd.DataFrame(maturityDic)
+maturity_df.to_csv(r'maturity_df.csv') 
 
 # =============================================================================
 # compiling pricing data and maturity data 
 # =============================================================================
+
 
 mid_df = pd.read_csv('mid term bond data.csv')
 short_df = pd.read_csv('short term bond data.csv')
