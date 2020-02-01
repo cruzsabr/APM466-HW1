@@ -6,7 +6,6 @@ Created on Wed Jan 29 10:00:00 2020
 """
 
 import pandas as pd
-from scipy.interpolate import interp1d
 from datetime import datetime
 import plotly.graph_objects as go
 import numpy as np
@@ -33,6 +32,7 @@ yieldBonds = bond_df.loc[bond_df['isin'].isin(validIsin)].reset_index(drop = Tru
 dateRange = ['1/15/2020', '1/14/2020', '1/13/2020', '1/10/2020',
              '1/9/2020', '1/8/2020', '1/7/2020', '1/6/2020', 
              '1/3/2020', '1/2/2020']
+dateRange.reverse()
 
 yieldBonds.maturity = [int(datetime.strptime(i, '%Y-%m-%d %H:%M').strftime('%y%m%d')) for i in yieldBonds.maturity]
 
@@ -46,9 +46,11 @@ sep2022 = yieldBonds.loc[yieldBonds.maturity == 220601].reset_index(drop = True)
 sep2022['maturity'] = [220901 for i in range(len(sep2022))]
 mar2023 = yieldBonds.loc[yieldBonds.maturity == 230301].reset_index(drop = True)
 
+weight = 0.5
+
 # linearly interpolate price and coupon rate between jun 2022 and mar2023
 for i in range(len(sep2022)):
-    sep2022.loc[i,'pClose'] = (sep2022.loc[i,'pClose']+mar2023.loc[i,'pClose'])/2
+    sep2022.loc[i,'pClose'] = (sep2022.loc[i,'pClose']+mar2023.loc[i,'pClose'])*weight
     sep2022.loc[i,'couponRate'] = (sep2022.loc[i,'couponRate']+mar2023.loc[i,'couponRate'])/2
 
 # repeat similar process for sep2023
@@ -56,7 +58,7 @@ sep2023 = yieldBonds.loc[yieldBonds.maturity == 230601].reset_index(drop = True)
 sep2023['maturity'] = [230901 for i in range(len(sep2023))]
 mar2024 = yieldBonds.loc[yieldBonds.maturity == 240301].reset_index(drop = True)
 for i in range(len(sep2023)):
-    sep2023.loc[i,'pClose'] = (sep2023.loc[i,'pClose']+mar2024.loc[i,'pClose'])/2
+    sep2023.loc[i,'pClose'] = (sep2023.loc[i,'pClose']+mar2024.loc[i,'pClose'])*weight
     sep2023.loc[i,'couponRate'] = (sep2023.loc[i,'couponRate']+mar2024.loc[i,'couponRate'])/2
 
 # remove jun2022 and jun2023 data
@@ -71,7 +73,6 @@ fig = go.Figure()
 
 for date in dateRange:
     bonds = yieldBonds[yieldBonds.date == date].reset_index(drop = True)
-    print(bonds[['date','maturity','couponRate','pClose']])
     x_maturity = bonds['maturity']
     x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
            
@@ -87,11 +88,21 @@ for date in dateRange:
         newYield = -np.log((marketPrice - runningSum)/notional)/timeToMaturity
         yieldRate.append(newYield)
         runningSum += notional * couponRate * np.exp(-yieldRate[i]*timeToMaturity)
-        
-        
-    print(yieldRate)
+            
     fig.add_trace(go.Scatter(x=x_maturity, y=yieldRate,
-                    mode='markers + lines',
+                    mode='lines + markers',
                     name=date))
+    
+    fig.update_layout(title = {
+            'text':"5 Year Yield Curve",
+            'y':0.9,
+            'x':0.5,
+            'xanchor':'center',
+            'yanchor':'top'},
+               xaxis_title = 'Maturity Date',
+               yaxis_title = 'Yield Rate',
+               template = 'plotly_white'
+               )
 
 fig.show()
+fig.write_image("5 Year Yield Curve.png", width = 624, height = 384)
