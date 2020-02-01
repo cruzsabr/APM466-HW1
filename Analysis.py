@@ -73,7 +73,7 @@ for i in range(len(sep2025)):
 
 
 # remove jun2022 and jun2023 data
-yieldBonds = yieldBonds[~yieldBonds.maturity.isin([220601,230601,250601])].reset_index(drop = True)
+yieldBonds = yieldBonds[~yieldBonds.maturity.isin([220601,230601,250601,260601])].reset_index(drop = True)
 yieldBonds = pd.concat([yieldBonds, sep2022,sep2023,sep2025],axis = 0)
 yieldBonds = yieldBonds.sort_values(by = 'maturity')
 
@@ -85,9 +85,11 @@ fig = go.Figure()
 
 for date in dateRange:
     bonds = yieldBonds[yieldBonds.date == date].reset_index(drop = True)
-    x_maturity = bonds['maturity']
-    x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
-           
+    #x_maturity = bonds['maturity']
+    #x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
+    x = range(0,11)
+    x = [i/2 for i in x]
+
     yieldRate = []
     
     runningSum = 0
@@ -101,9 +103,8 @@ for date in dateRange:
         yieldRate.append(newYield)
         runningSum += notional * couponRate * np.exp(-yieldRate[i]*timeToMaturity)
             
-    fig.add_trace(go.Scatter(x=list(range(6)), y=yieldRate,
+    fig.add_trace(go.Scatter(x=x, y=yieldRate,
                     mode='lines + markers',
-                    text = x_maturity,
                     name=date))
     
     fig.update_layout(title = {
@@ -116,6 +117,7 @@ for date in dateRange:
                yaxis_title = 'Yield Rate',
                template = 'plotly_white'
                )
+    
 
 fig.show()
 fig.write_image("5 Year Yield Curve.png", width = 624, height = 300)
@@ -129,8 +131,10 @@ fig2 = go.Figure()
 for date in dateRange:
     
     bonds = yieldBonds[yieldBonds.date == date].reset_index(drop = True)
-    x_maturity = bonds['maturity']
-    x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
+#    x_maturity = bonds['maturity']
+#    x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
+    x = range(0,11)
+    x = [i/2 for i in x]
     spotRate = []
     firstSpot = yieldRate[0]
     firstCoupon = 1000 * bonds.loc[1,'couponRate']/100
@@ -146,9 +150,8 @@ for date in dateRange:
         spotRate.append(newSpot)
         runningSum += notional * couponRate / (1+timeToMaturity*spotRate[i])**i
      
-    fig2.add_trace(go.Scatter(x=x_maturity, y=spotRate,
+    fig2.add_trace(go.Scatter(x=x, y=spotRate,
                     mode='lines + markers',
-                    text = x_maturity,
                     name=date))
     
     fig2.update_layout(title = {
@@ -157,7 +160,7 @@ for date in dateRange:
             'x':0.5,
             'xanchor':'center',
             'yanchor':'top'},
-               xaxis_title = 'Maturity Date',
+               xaxis_title = 'Time to Maturity',
                yaxis_title = 'Spot Rate',
                template = 'plotly_white'
                )
@@ -169,3 +172,38 @@ fig2.write_image("5 Year Spot Curve.png", width = 624, height = 300)
 # calculate the forward rate for each matury date and plot it
 # =============================================================================
 
+
+fig3 = go.Figure()
+
+for date in dateRange:
+    
+    bonds = yieldBonds[yieldBonds.date == date].reset_index(drop = True)
+#    x_maturity = bonds['maturity']
+#    x_maturity = [datetime.strptime(str(i),'%y%m%d') for i in x_maturity]
+    x = range(0,11)
+    x = [i/2 for i in x]
+    fwdRate = []
+        
+    for i in range(0,len(bonds)-2):
+        spot1 = spotRate[i]
+        spot2 = spotRate[i+1]
+        newFwd = (1+spot2)**(i+1)/(1+spot1)**(i)-1
+        fwdRate.append(newFwd)
+     
+    fig3.add_trace(go.Scatter(x=x, y=spotRate,
+                    mode='lines + markers',
+                    name=date))
+    
+    fig3.update_layout(title = {
+            'text':"5 Year Forward Curve",
+            'y':0.9,
+            'x':0.5,
+            'xanchor':'center',
+            'yanchor':'top'},
+               xaxis_title = 'Time to Maturity',
+               yaxis_title = 'Spot Rate',
+               template = 'plotly_white'
+               )
+
+fig3.show()
+#fig3.write_image("5 Year Spot Curve.png", width = 624, height = 300)
