@@ -81,6 +81,11 @@ yieldBonds = yieldBonds.sort_values(by = 'maturity')
 # calculate yield rate for each data point for each market date and plot it
 # =============================================================================
 
+# we will store the yield rates of every day in a dictionary
+# this saves us from needing to recalculate further on
+
+dailyYield = {}
+
 fig = go.Figure()
 
 for date in dateRange:
@@ -100,7 +105,8 @@ for date in dateRange:
         newYield = -np.log((marketPrice - runningSum)/notional)/timeToMaturity
         yieldRate.append(newYield)
         runningSum += notional * couponRate * np.exp(-yieldRate[i]*timeToMaturity)
-            
+    
+    dailyYield[date]=yieldRate        
     fig.add_trace(go.Scatter(x=x, y=yieldRate,
                     mode='lines + markers',
                     name=date))
@@ -118,8 +124,9 @@ for date in dateRange:
     fig.update_xaxes(dtick =1, rangemode = 'tozero', range = [0,5])
     
 
-fig.show()
+#fig.show()
 fig.write_image("5 Year Yield Curve.png", width = 624, height = 300)
+dailyYield = pd.DataFrame(dailyYield)
 
 # =============================================================================
 # calculate the spot rate for each maturity date and plot it
@@ -166,12 +173,14 @@ for date in dateRange:
     fig2.update_xaxes(dtick =1, rangemode = 'tozero', range = [0,5])
 
 
-fig2.show()
+#fig2.show()
 fig2.write_image("5 Year Spot Curve.png", width = 624, height = 300)
 # =============================================================================
 # calculate the forward rate for each matury date and plot it
 # =============================================================================
 
+#store forward rates in dictionary for future question
+dailyFwd = {}
 
 fig3 = go.Figure()
 
@@ -181,20 +190,7 @@ for date in dateRange:
     x = range(2,11)
     x = [i/2 for i in x]
 
-    # calculate the yield rates
-    yieldRate = []
-    
-    runningSum = 0
-   
-    for i in range(0,len(bonds)-1):
-        couponRate = bonds.loc[i+1,'couponRate']/100
-        notional = 1000
-        marketPrice = bonds.loc[i,'pClose']/100 * notional
-        timeToMaturity = (1+(6*i))/12
-        newYield = -np.log((marketPrice - runningSum)/notional)/timeToMaturity
-        yieldRate.append(newYield)
-        runningSum += notional * couponRate * np.exp(-yieldRate[i]*timeToMaturity)
-    
+    yieldRate = list(dailyYield[date])    
     fwdRate = []
         
     for i in range(2,len(yieldRate)-2):
@@ -204,6 +200,8 @@ for date in dateRange:
         t2 = (1+(6*(i+2)))/2
         newFwd = ((y2*t2)-(y1*t1))/(t2-t1)
         fwdRate.append(newFwd)
+    
+    dailyFwd[date]=fwdRate
      
     fig3.add_trace(go.Scatter(x=x, y=fwdRate,
                     mode='lines + markers',
@@ -221,7 +219,37 @@ for date in dateRange:
                )
     fig3.update_xaxes(dtick =1, rangemode = 'tozero', range = [0,5])
 
-fig3.show()
+dailyFwd = pd.DataFrame(dailyFwd)
+
+#fig3.show()
 fig3.write_image("5 Year Forward Curve.png", width = 624, height = 300)
+
+# =============================================================================
+# find covariance matrix of log-returns of yield
+# =============================================================================
+
+yCov = np.empty([5,9])
+
+for i in range(2,11,2):
+
+    yields = dailyYield.loc[i]
+    
+    for j in range(len(yields)-1):
+        ind = int(i/2)-1
+        yCov[ind,j]=np.log(yields[j+1]/yields[j])
+
+
+pd.DataFrame(np.cov(yCov))
+
+fCov = np.empty([4,9])
+
+for i in range(0,7,2):
+    fwds = dailyFwd.loc[i]
+    for j in range(len(fwds)-1):
+        ind = int(i/2)
+        fCov[ind,j] = np.log(fwds[j+1]/fwds[j])
+
+pd.DataFrame(np.cov(fCov))
+        
 
 
