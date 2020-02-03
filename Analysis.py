@@ -117,7 +117,7 @@ for date in dateRange:
     
     fig.update_layout(title = {
             'text':"5 Year Yield Curve - Gov't of Canada Bonds",
-            'y':0.9,
+            'y':0.8,
             'x':0.5,
             'xanchor':'center',
             'yanchor':'top'},
@@ -166,8 +166,8 @@ for date in dateRange:
                     name=date))
     
     fig.update_layout(title = {
-            'text':"5 Year Spot Rate Curve - Gov't of Canada Bonds",
-            'y':0.9,
+            'text':"5 Year Spot Rate Curve",
+            'y':0.8,
             'x':0.5,
             'xanchor':'center',
             'yanchor':'top'},
@@ -213,7 +213,7 @@ for date in dateRange:
     
     fig3.update_layout(title = {
             'text':"One Year Forward Curve",
-            'y':0.9,
+            'y':0.8,
             'x':0.5,
             'xanchor':'center',
             'yanchor':'top'},
