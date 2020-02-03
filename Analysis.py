@@ -10,6 +10,7 @@ from datetime import datetime
 import plotly.graph_objects as go
 import numpy as np
 from scipy import optimize
+import scipy.linalg as la
 
 # import data
 maturity_df = pd.read_csv('maturity_df.csv')[:-1]
@@ -38,48 +39,6 @@ dateRange.reverse()
 yieldBonds.maturity = [int(datetime.strptime(i, '%Y-%m-%d %H:%M').strftime('%y%m%d')) for i in yieldBonds.maturity]
 
 t1 = datetime.date((datetime.strptime('2020-02-02 0:00', '%Y-%m-%d %H:%M')))
-
-# =============================================================================
-# # =============================================================================
-# # interpolate to solve for market price and cashflow for Sept 2022,2023,2025
-# # =============================================================================
-# 
-# # base sep2022 data on jun2022 
-# sep2022 = yieldBonds.loc[yieldBonds.maturity == 220601].reset_index(drop = True)
-# 
-# # change the maturity date
-# sep2022['maturity'] = [220901 for i in range(len(sep2022))]
-# mar2023 = yieldBonds.loc[yieldBonds.maturity == 230301].reset_index(drop = True)
-# 
-# # linearly interpolate price and coupon rate between jun 2022 and mar2023
-# weight = 1/3
-# for i in range(len(sep2022)):
-#     sep2022.loc[i,'pClose'] = (weight*sep2022.loc[i,'pClose']+(1-weight)*mar2023.loc[i,'pClose'])
-#     sep2022.loc[i,'couponRate'] = (weight*sep2022.loc[i,'couponRate']+(1-weight)*mar2023.loc[i,'couponRate'])
-# 
-# # repeat similar process for sep2023
-# sep2023 = yieldBonds.loc[yieldBonds.maturity == 230601].reset_index(drop = True)
-# sep2023['maturity'] = [230901 for i in range(len(sep2023))]
-# mar2024 = yieldBonds.loc[yieldBonds.maturity == 240301].reset_index(drop = True)
-# for i in range(len(sep2023)):
-#     sep2023.loc[i,'pClose'] = (weight*sep2023.loc[i,'pClose']+(1-weight)*mar2024.loc[i,'pClose'])
-#     sep2023.loc[i,'couponRate'] = (weight*sep2023.loc[i,'couponRate']+(1-weight)*mar2024.loc[i,'couponRate'])
-# 
-# # repeat similar process for sep2025
-# weight = 1/4
-# sep2025 = yieldBonds.loc[yieldBonds.maturity == 250601].reset_index(drop = True)
-# sep2025['maturity'] = [250901 for i in range(len(sep2025))]
-# jun2026 = yieldBonds.loc[yieldBonds.maturity == 260601].reset_index(drop = True)
-# for i in range(len(sep2025)):
-#     sep2025.loc[i,'pClose'] = (weight*sep2025.loc[i,'pClose']+(1-weight)*jun2026.loc[i,'pClose'])
-#     sep2025.loc[i,'couponRate'] = (weight*sep2025.loc[i,'couponRate']+(1-weight)*jun2026.loc[i,'couponRate'])
-# 
-# 
-# # remove jun2022 and jun2023 data
-# yieldBonds = yieldBonds[~yieldBonds.maturity.isin([220601,230601,250601,260601])].reset_index(drop = True)
-# yieldBonds = pd.concat([yieldBonds, sep2022,sep2023,sep2025],axis = 0)
-# yieldBonds = yieldBonds.sort_values(by = 'maturity')
-# =============================================================================
 
 # =============================================================================
 # yield curve (solve for YTM as IRR)
@@ -181,8 +140,6 @@ dailyYield = pd.DataFrame(dailyYield)
 # we will store the yield rates of every day in a dictionary
 # this saves us from needing to recalculate further on
 
-dailySpot = {}
-
 fig = go.Figure()
 
 for date in dateRange:
@@ -202,10 +159,8 @@ for date in dateRange:
         discount = [np.exp(-i*j) for i,j in zip(spotRate, timesToMaturity[:len(spotRate)])]
         cashflow = np.multiply(coupons,discount)
         newSpot = -np.log((marketPrice - sum(cashflow))/(notional))/(timeToMaturity)
-        
         spotRate.append(newSpot)
     
-    dailySpot[date]=spotRate        
     fig.add_trace(go.Scatter(x=x, y=spotRate,
                     mode='lines + markers',
                     name=date))
@@ -222,10 +177,8 @@ for date in dateRange:
                )
     fig.update_xaxes(range = [datetime.strptime(str(200101), '%y%m%d'),datetime.strptime(str(260101), '%y%m%d')])
 
-
 fig.show()
 fig.write_image("5 Year Spot Curve.png", width = 624, height = 300)
-dailySpot = pd.DataFrame(dailySpot)
 
 # =============================================================================
 # calculate the forward rate for each matury date and plot it
@@ -291,8 +244,13 @@ for i in range(2,11,2):
         ind = int(i/2)-1
         yCov[ind,j]=np.log(yields[j+1]/yields[j])
 
-pd.DataFrame(np.cov(yCov))
+yCov = np.cov(yCov)
+yEval, yEvec = la.eig(yCov)
 
+d={}
+for i in range(len(yEval)):
+    d[yEval[i]]=yEvec[i]
+    
 fCov = np.empty([4,9])
 
 for i in range(0,7,2):
@@ -301,8 +259,13 @@ for i in range(0,7,2):
         ind = int(i/2)
         fCov[ind,j] = np.log(fwds[j+1]/fwds[j])
 
-pd.DataFrame(np.cov(fCov))
-        
+fCov = np.cov(fCov)
+fEval, fEvec = la.eig(fCov)
+
+d={}
+for i in range(len(fEval)):
+    d[fEval[i]]=fEvec[i]
+    
 
 
 
